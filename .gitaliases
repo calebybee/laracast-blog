@@ -1,0 +1,132 @@
+#use these aliases by adding the following to your .git/config (without the comment hashes of course):
+#   [include]
+#       path = ../.gitaliases
+[alias]
+
+    #---------------------------------------------------
+	# Weekly Version Branch Commands
+	#---------------------------------------------------
+
+	# usage: "git new RDMP-00 type/some-branch-details" (from any branch)
+	# details: Creates a new branch from the latest develop branch. Not for hotfixes (see below)
+	new = "!f(){ git checkout develop && git pull origin develop && git checkout -b $1/$2 && echo \"New branch: $1/$2 created from latest develop for Jira issue https://your-jira-path-here.atlassian.net/browse/$1\"; };f"
+
+	# usage: "git qa" (for current working branch)
+	# details: updates current branch with latest develop branch, then push it up and deploys it to staging for QA review
+	qa = "!f(){ current_branch=$(git rev-parse --abbrev-ref HEAD) && git pull origin develop && git push origin $current_branch && git stage-it && echo \"$current_branch pushed to remote for review against develop. Use link above to create review\" && git st; };f"
+
+	# usage: "git to-dev" (for current branch)
+	# details: merge current final approved branch into develop and stage-it
+	to-dev = "!f(){ branch_to_add=$(git rev-parse --abbrev-ref HEAD) && git pull origin $branch_to_add && git checkout develop && git pull origin develop && git merge --no-ff $branch_to_add && git push && git stage-it && git checkout $branch_to_add && git arch && echo \"$branch_to_add is now in develop for release\" && git st; };f"
+
+	# usage: "git dev-to-ver 1.0.0" (from any branch)
+	# details: create a new version branch from latest develop branch. used only when ready to deploy weekly* version
+	dev-to-ver = "!f(){ git catchup-develop && git checkout -b $1 && echo \"$1 created from develop for release\"; };f"
+
+	# usage: "git release-ver 1.0.0" (for version branch)
+	# details: merge release version into master and develop for deployment
+	release-ver = "!f(){ version=$(cat .version) && git checkout $1 && git pushup && git checkout develop && git pull origin develop && git merge --no-ff $1 && git push origin develop && git stage-it && git backup-master && git merge --no-ff $1 && git push origin master && git checkout $1 && git arch && echo \"$1 has been published to develop and master and is ready to be deployed. Visit https://bitbucket.org/your-jira-path-here/lead-api/branches/\" && git st; };f"
+
+
+	#---------------------------------------------------
+	# Hotfix commands
+	#---------------------------------------------------
+
+	# usage: "git new-hotfix RDMP-00 some-hotfix-details" (from any branch)
+	# details: Creates a new branch from the latest master branch.
+	new-hotfix = "!f(){ git catchup-master && git checkout -b $1/hotfix/$2 && echo \"New Hotfix branch: $1/hotfix/$2 created from latest master for Jira issue https://your-jira-path-here.atlassian.net/browse/$1\"; };f"
+
+	# usage: "git qa-hotfix" (for current hotfix branch)
+	# details: updates current branch with latest master branch, then push it up for review
+	qa-hotfix = "!f(){ git pull origin master && current_branch=$(git rev-parse --abbrev-ref HEAD) && git push origin $current_branch && git stage-it && echo \"$current_branch pushed to remote for review against master. Use link above to create review\" && git st; };f"
+
+	# usage: "git release-hotfix" (for current hotfix branch)
+	# details: merge hotfix into master and develop for deployment
+	release-hotfix = "!f(){ git publish; };f"
+
+
+	#---------------------------------------------------
+	# Generic
+	#---------------------------------------------------
+
+	# usage: "git stage-it" (for current branch)
+	# details: merge branch into staging and deploy for testing
+	stage-it = "!f(){ branch_to_merge=$(git rev-parse --abbrev-ref HEAD) && git fetch && git checkout staging && git pull origin staging && echo $branch_to_merge && git merge --no-ff $branch_to_merge && git push origin staging && git checkout $branch_to_merge && echo \"$branch_to_merge is now being deployed to staging. Visit https://bitbucket.org/your-jira-path-here/lead-api/addon/pipelines/home\"; };f"
+
+	# usage: "git publish" (for current branch)
+	# details: merge branch into master and develop for deployment
+	publish = "!f(){ branch_to_merge=$(git rev-parse --abbrev-ref HEAD) && git pushup && git checkout develop && git pull origin develop && git merge --no-ff $branch_to_merge && git push origin develop && git stage-it && git backup-master && git merge --no-ff $branch_to_merge && git push origin master && git checkout $branch_to_merge && git arch && echo \"$branch_to_merge has been published to develop and master and is ready to be deployed. Visit https://bitbucket.org/your-jira-path-here/lead-api/branches/\" && git st; };f"
+
+	# usage: "git arch" (for current branch)
+	# details: archive current branch
+	arch = "!f(){ if [ $1='-f' ]; then flag='-D'; else flag='-d'; fi && branch=$(git rev-parse --abbrev-ref HEAD) && git pull origin $branch && git tag archive/$branch && git push origin archive/$branch && git checkout master && git branch $flag $branch && git push origin --delete $branch && echo \"$branch archived as archive/$branch\" && git st; };f"
+
+	# usage: "git backup-master" (from any branch)
+	# details: create/update final version backup branch from master. usually before a deploy
+	backup-master = "!f(){ git catchup-master && masterBackup=backup/$(cat .version) && git cho -B $masterBackup && git push -f --set-upstream origin $masterBackup && git cho master && echo \"Backup branch created/updated. Compare this backup to master at https://bitbucket.org/your-jira-path-here/lead-api/branches/compare/master%0Dbackup%2F$(cat .version)#diff\"; };f"
+
+	# usage: "git backup-rollback 1.0.0" (from any branch)
+	# details: rollback version to master. usually after testing on master
+	backup-rollback = "!f(){ masterBackup=backup/$1 && git fetch && git checkout $masterBackup && git pull origin $masterBackup && git branch -d master && git cho -b master && git push -f --set-upstream origin master && echo \"$masterBackup restored to master and is ready to be deployed. Visit https://bitbucket.org/your-jira-path-here/lead-api/branches/\" && git st; };f"
+
+    catchup-master = "!f(){ git cho master && git pull && echo \"The master branch is now up-to-date on local\"; };f"
+
+    catchup-develop = "!f(){ git cho develop && git pull && git pull origin master && git push && echo \"The develop branch is now up-to-date on local and remote\"; };f"
+
+    reset-staging = "!f(){ git catchup-develop && git cho -B staging && git push -f && echo \"The staging branch has been reset to match the develop branch\"; };f"
+
+
+	#---------------------------------------------------
+	# Utilities
+	#---------------------------------------------------
+
+	cho = checkout
+
+	com = commit -m
+
+	st = status
+
+	ac = "!f(){ git add --a && git commit -m \"$1\" ; };f"
+
+	pushup = "!f(){ branch=$(git rev-parse --abbrev-ref HEAD) && git push --set-upstream origin \"$branch\"; };f"
+
+	aliases = list
+
+	list = "!f(){ echo \"\
+\n----------------------------General GIT Aliases----------------------------\n\n\
+\
+	git st			Short for git status\n\
+	git cho			Short for git checkout\n\
+	git com			Short for git commit -m\n\
+	git ac			Short for git add --a && git commit -m\n\
+	git pushup		Short for git push --set-upstream origin\n\
+\
+\n--------------------------Development GIT Aliases--------------------------\n\n\
+\
+	git new [RDMP-000] [type/branch-details]	Create new issue branch from the latest develop branch\n\
+	git qa						updates current branch with latest develop branch, then push it up and deploys it to staging for QA review\n\
+	git to-dev					merge current final approved branch into develop and stage-it\n\
+\
+\n-------------------------Weekly Deploy GIT Aliases-------------------------\n\n\
+\
+	git dev-to-ver [1.x.x]		create a new version branch from latest develop branch. used only when ready to deploy weekly version\n\
+	git release-ver [1.x.x]		merge release version into master and develop for deployment\n\
+\
+\n-----------------------------Hotfix GIT Aliases----------------------------\n\n\
+\
+	git new-hotfix [RDMP-000] [some-branch-details]		Creates a new branch from the latest master branch\n\
+	git qa-hotfix						updates current branch with latest master branch, then push it up for review\n\
+	git release-hotfix					merge hotfix into master and develop for deployment\n\
+\
+\n-----------------------------Other GIT Aliases-----------------------------\n\n\
+\
+	git stage-it			merge branch into staging and deploy for testing\n\
+	git arch			archive current branch\n\
+	git publish			merge branch into master and develop for deployment\n\
+	git catchup-master		checkout and pull down latest master\n\
+	git catchup-develop		checkout and pull down latest develop and then the latest master into develop and push up\n\
+	git backup-master		create/update final version backup branch from master. usually before a deploy\n\
+	git backup-rollback [1.x.x]	rollback version to master. usually after testing on master\n\
+	git reset-staging		overwrite existing staging branch with fresh copy of the develop branch\n\
+\
+\n--------------------------End List of GIT Aliases--------------------------\n\"; };f"
