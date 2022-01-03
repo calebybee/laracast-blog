@@ -7,7 +7,7 @@
                 </a>
             </h1>
             <div>
-                {{ $post->excerpt }}exi
+                {{ $post->excerpt }}
             </div>
         </article>
     @endforeach
